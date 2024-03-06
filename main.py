@@ -13,30 +13,36 @@ start_time = time.time()
 
 config = configparser.ConfigParser()
 config.read('config.ini')
+# словарь для хранения значений сетей
+network_to_process = {key: config.getboolean('Networks', key) for key in config['Networks']}
+# Проверка на отсутствие включенных сетей
+if not(any(network_to_process.values())):
+    raise ValueError("Не выбрана ни одна сеть в конфигурационном файле. Выберите хотя бы одну сеть.")
 
-ethereum_enabled = config.getboolean('Networks', 'ethereum', fallback=False)
-linea_enabled = config.getboolean('Networks', 'linea', fallback=False)
-optimism_enabled = config.getboolean('Networks', 'optimism', fallback=False)
-arbitrum_enabled = config.getboolean('Networks', 'arbitrum', fallback=False)
-zksync_enabled = config.getboolean('Networks', 'zksync', fallback=False)
+# Пример обращения к значению для сети 'linea'
+linea_value = network_to_process.get('ethereum')
 
-
-addresses_file_path = '/Users/meshok/Documents/coding/GitHub/balance_checker/wallets.txt'
+addresses_file_path = config.get('addresses', 'file_path', fallback='no wallets file found')
 
 # Подключение к Ethereum mainnet
-web3_eth = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f'))
+if network_to_process.get('ethereum'):
+    web3_eth = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f'))
 
 # Подключение к Arbitrum One
-web3_arb = Web3(Web3.HTTPProvider("https://rpc.ankr.com/arbitrum/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
+if network_to_process.get('arbitrum'):
+    web3_arb = Web3(Web3.HTTPProvider("https://rpc.ankr.com/arbitrum/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
 
 # Подключение к Optimism
-web3_op = Web3(Web3.HTTPProvider("https://rpc.ankr.com/optimism/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
+if network_to_process.get('optimism'):
+    web3_op = Web3(Web3.HTTPProvider("https://rpc.ankr.com/optimism/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
 
 # Подключение к Linea
-web3_linea = Web3(Web3.HTTPProvider("https://linea-mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f"))
+if network_to_process.get('linea'):
+    web3_linea = Web3(Web3.HTTPProvider("https://linea-mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f"))
 
 # Подключение к zkSync Era
-web3_zksync = Web3(Web3.HTTPProvider("https://rpc.ankr.com/zksync_era/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
+if network_to_process.get('zksync'):
+    web3_zksync = Web3(Web3.HTTPProvider("https://rpc.ankr.com/zksync_era/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
 
 def read_addresses_from_file(file_path):
     try:
@@ -83,11 +89,11 @@ def get_ethereum_balance_zksync(address):
         return f"Ошибка при получении баланса: {e}"
 
 def process_address(address):
-    eth_balance_eth = get_ethereum_balance_eth(address)    
-    eth_balance_arb = get_ethereum_balance_arb(address)
-    eth_balance_op = get_ethereum_balance_op(address)
-    eth_balance_linea = get_ethereum_balance_linea(address)
-    eth_balance_zksync = get_ethereum_balance_zksync(address)
+    eth_balance_eth = get_ethereum_balance_eth(address) if network_to_process.get('ethereum') else '-'
+    eth_balance_arb = get_ethereum_balance_arb(address) if network_to_process.get('arbitrum') else '-'
+    eth_balance_op = get_ethereum_balance_op(address) if network_to_process.get('optimism') else '-'
+    eth_balance_linea = get_ethereum_balance_linea(address) if network_to_process.get('linea') else '-'
+    eth_balance_zksync = get_ethereum_balance_zksync(address) if network_to_process.get('zksync') else '-'
     return {'Address': address, 
             'ETH': eth_balance_eth, 'ETH_arb': eth_balance_arb, 
             'ETH_linea': eth_balance_linea, 'ETH_op': eth_balance_op,
@@ -120,4 +126,8 @@ with open('work_time_logs.txt', 'a') as work_time_logs:
     work_time_logs.write(str(current_time) + '\n')
     work_time_logs.write(f"Время выполнения программы: {round(execution_time)} секунд\n")
     print(f"Время выполнения программы: {round(execution_time)} секунд\n")
+    work_time_logs.write("Обработаны сети: ")
+    for network in network_to_process:
+        if network_to_process[network]: work_time_logs.write(f"{network} ")
+    work_time_logs.write('\n')
     work_time_logs.write('\n')
