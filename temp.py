@@ -47,3 +47,87 @@ def get_usdc_balance_eth(address):
     except Exception as e:
         return f"Ошибка при получении баланса USDC: {e}"
 '''
+'''
+def get_ethereum_balance_eth(address):
+    try:
+        balance_eth = web3_eth.from_wei(web3_eth.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+    
+def get_ethereum_balance_arb(address):
+    try:
+        balance_eth = web3_arb.from_wei(web3_arb.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+
+def get_ethereum_balance_op(address):
+    try:
+        balance_eth = web3_op.from_wei(web3_op.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+
+def get_ethereum_balance_linea(address):
+    try:
+        balance_eth = web3_linea.from_wei(web3_linea.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+    
+def get_ethereum_balance_zksync(address):
+    try:
+        balance_eth = web3_zksync.from_wei(web3_zksync.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+
+def get_ethereum_balance_scroll(address):
+    try:
+        balance_eth = web3_scroll.from_wei(web3_scroll.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+
+def get_ethereum_balance_mode(address):
+    try:
+        balance_eth = web3_mode.from_wei(web3_mode.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+
+def get_ethereum_balance_blast(address):
+    try:
+        balance_eth = web3_blast.from_wei(web3_blast.eth.get_balance(address), 'ether')
+        return balance_eth
+    except Exception as e:
+        return f"Ошибка при получении баланса: {e}"
+
+def process_address(address):
+    eth_balance_eth = get_ethereum_balance_eth(address) if network_to_process.get('ethereum') else '-'
+    eth_balance_arb = get_ethereum_balance_arb(address) if network_to_process.get('arbitrum') else '-'
+    eth_balance_op = get_ethereum_balance_op(address) if network_to_process.get('optimism') else '-'
+    eth_balance_linea = get_ethereum_balance_linea(address) if network_to_process.get('linea') else '-'
+    eth_balance_zksync = get_ethereum_balance_zksync(address) if network_to_process.get('zksync') else '-'
+    eth_balance_scroll = get_ethereum_balance_scroll(address) if network_to_process.get('scroll') else '-'
+    eth_balance_mode = get_ethereum_balance_mode(address) if network_to_process.get('mode') else '-'
+    eth_balance_blast = get_ethereum_balance_blast(address) if network_to_process.get('blast') else '-'
+
+    print(f"Address: {address}")
+    print(f"ETH: {eth_balance_eth}")
+    print(f"ETH_arb: {eth_balance_arb}")
+    print(f"ETH_op: {eth_balance_op}")
+    print(f"ETH_linea: {eth_balance_linea}")
+    print(f"ETH_zksync: {eth_balance_zksync}")
+    print(f"ETH_scroll: {eth_balance_scroll}")
+    print(f"ETH_mode: {eth_balance_mode}")
+    print(f"ETH_blast: {eth_balance_blast}")
+    print()
+
+    return {'Address': address, 
+            'ETH': eth_balance_eth, 'ETH_arb': eth_balance_arb, 
+            'ETH_op': eth_balance_op, 'ETH_linea': eth_balance_linea,
+            'ETH_zksync': eth_balance_zksync, 'ETH_scroll': eth_balance_scroll,
+            'ETH_mode': eth_balance_mode, 'ETH_blast': eth_balance_blast}
+'''

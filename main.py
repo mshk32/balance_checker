@@ -1,13 +1,11 @@
-input = open('wallets.txt', 'r')
-#https://mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f
 import pandas as pd
 import time
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from web3 import Web3
 import datetime
 import pytz
 import configparser
+import aiohttp
 
 start_time = time.time()
 
@@ -19,95 +17,82 @@ network_to_process = {key: config.getboolean('Networks', key) for key in config[
 if not(any(network_to_process.values())):
     raise ValueError("Не выбрана ни одна сеть в конфигурационном файле. Выберите хотя бы одну сеть.")
 
-# Пример обращения к значению для сети 'linea'
-linea_value = network_to_process.get('ethereum')
-
 addresses_file_path = config.get('addresses', 'file_path', fallback='no wallets file found')
 
-# Подключение к Ethereum mainnet
-if network_to_process.get('ethereum'):
-    web3_eth = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f'))
-
-# Подключение к Arbitrum One
-if network_to_process.get('arbitrum'):
-    web3_arb = Web3(Web3.HTTPProvider("https://rpc.ankr.com/arbitrum/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
-
-# Подключение к Optimism
-if network_to_process.get('optimism'):
-    web3_op = Web3(Web3.HTTPProvider("https://rpc.ankr.com/optimism/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
-
-# Подключение к Linea
-if network_to_process.get('linea'):
-    web3_linea = Web3(Web3.HTTPProvider("https://linea-mainnet.infura.io/v3/0386874bdf174c94b8686678f9615f3f"))
-
-# Подключение к zkSync Era
-if network_to_process.get('zksync'):
-    web3_zksync = Web3(Web3.HTTPProvider("https://rpc.ankr.com/zksync_era/d3f71af2055e23c48079e7a59f5b1e813c69f858627362364fcc61473ab3fff2"))
+# Подключение ко всем выбранным сетям
+def connect_to_network(network_name, provider_url):
+    if network_to_process.get(network_name):
+        return Web3(Web3.HTTPProvider(provider_url))
+    return None
+web3_eth = connect_to_network('ethereum', config.get('RPCs', 'ethereum'))
+web3_arb = connect_to_network('arbitrum', config.get('RPCs', 'arbitrum'))
+web3_op = connect_to_network('optimism', config.get('RPCs', 'optimism'))
+web3_linea = connect_to_network('linea', config.get('RPCs', 'linea'))
+web3_zksync = connect_to_network('zksync', config.get('RPCs', 'zksync'))
+web3_scroll = connect_to_network('scroll', config.get('RPCs', 'scroll'))
+web3_base = connect_to_network('base', config.get('RPCs', 'base'))
+web3_mode = connect_to_network('mode', config.get('RPCs', 'mode'))
+web3_blast = connect_to_network('blast', config.get('RPCs', 'blast'))
 
 def read_addresses_from_file(file_path):
+    addresses = []
     try:
         with open(file_path, 'r') as file:
             addresses = [line.strip() for line in file if line.strip()]  # Исключаем пустые строки
-        return addresses
     except Exception as e:
         print(f"Ошибка при чтении адресов из файла: {e}")
-        return []
+    return addresses
 
-def get_ethereum_balance_eth(address):
+async def get_eth_balance_async(loop, web3, address):
     try:
-        balance_eth = web3_eth.from_wei(web3_eth.eth.get_balance(address), 'ether')
+        balance_wei = await loop.run_in_executor(None, web3.eth.get_balance, address)
+        balance_eth = round(web3.from_wei(balance_wei, 'ether'), 5)
         return balance_eth
     except Exception as e:
         return f"Ошибка при получении баланса: {e}"
+
+def create_task(network_name, web3_instance, address, loop):
+    if network_to_process.get(network_name):
+        return get_eth_balance_async(loop, web3_instance, address)
+    return '-'
+
+
+async def process_address(address, loop):
+    tasks = [
+        create_task('ethereum', web3_eth, address, loop),
+        create_task('arbitrum', web3_arb, address, loop),
+        create_task('optimism', web3_op, address, loop),
+        create_task('linea', web3_linea, address, loop),
+        create_task('zksync', web3_zksync, address, loop),
+        create_task('scroll', web3_scroll, address, loop),
+        create_task('base', web3_base, address, loop),
+        create_task('mode', web3_mode, address, loop),
+        create_task('blast', web3_blast, address, loop),
+    ]
     
-def get_ethereum_balance_arb(address):
     try:
-        balance_eth = web3_arb.from_wei(web3_arb.eth.get_balance(address), 'ether')
-        return balance_eth
+        results = await asyncio.gather(*tasks)
+        return {'Address': address, 'ETH': results[0], 'ETH_arb': results[1],
+                'ETH_op': results[2], 'ETH_linea': results[3],
+                'ETH_zksync': results[4], 'ETH_scroll': results[5],
+                'ETH_base': results[6], 'ETH_mode': results[7], 
+                'ETH_blast': results[8]}
     except Exception as e:
-        return f"Ошибка при получении баланса: {e}"
+        return f"Ошибка при обработке адреса {address}: {e}"
 
-def get_ethereum_balance_op(address):
-    try:
-        balance_eth = web3_op.from_wei(web3_op.eth.get_balance(address), 'ether')
-        return balance_eth
-    except Exception as e:
-        return f"Ошибка при получении баланса: {e}"
-
-def get_ethereum_balance_linea(address):
-    try:
-        balance_eth = web3_linea.from_wei(web3_linea.eth.get_balance(address), 'ether')
-        return balance_eth
-    except Exception as e:
-        return f"Ошибка при получении баланса: {e}"
-    
-def get_ethereum_balance_zksync(address):
-    try:
-        balance_eth = web3_zksync.from_wei(web3_zksync.eth.get_balance(address), 'ether')
-        return balance_eth
-    except Exception as e:
-        return f"Ошибка при получении баланса: {e}"
-
-def process_address(address):
-    eth_balance_eth = get_ethereum_balance_eth(address) if network_to_process.get('ethereum') else '-'
-    eth_balance_arb = get_ethereum_balance_arb(address) if network_to_process.get('arbitrum') else '-'
-    eth_balance_op = get_ethereum_balance_op(address) if network_to_process.get('optimism') else '-'
-    eth_balance_linea = get_ethereum_balance_linea(address) if network_to_process.get('linea') else '-'
-    eth_balance_zksync = get_ethereum_balance_zksync(address) if network_to_process.get('zksync') else '-'
-    return {'Address': address, 
-            'ETH': eth_balance_eth, 'ETH_arb': eth_balance_arb, 
-            'ETH_linea': eth_balance_linea, 'ETH_op': eth_balance_op,
-            'ETH_zksync': eth_balance_zksync}
-
-async def async_process_addresses(addresses):
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        loop = asyncio.get_event_loop()
-        tasks = [loop.run_in_executor(executor, process_address, address) for address in addresses]
-        return await asyncio.gather(*tasks)
 
 async def main():
     addresses = read_addresses_from_file(addresses_file_path)
-    results = await async_process_addresses(addresses)
+    tasks = []
+
+    async with aiohttp.ClientSession() as session:
+        loop = asyncio.get_event_loop()
+
+        for address in addresses:
+            task = process_address(address, loop)
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks)
 
     df = pd.DataFrame(results)
 
@@ -117,7 +102,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
 
 #Получение времени выполнения программы + запись в логи
 with open('work_time_logs.txt', 'a') as work_time_logs:
