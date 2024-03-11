@@ -5,7 +5,6 @@ from web3 import Web3
 import datetime
 import pytz
 import configparser
-import aiohttp
 
 start_time = time.time()
 
@@ -33,6 +32,7 @@ web3_scroll = connect_to_network('scroll', config.get('RPCs', 'scroll'))
 web3_base = connect_to_network('base', config.get('RPCs', 'base'))
 web3_mode = connect_to_network('mode', config.get('RPCs', 'mode'))
 web3_blast = connect_to_network('blast', config.get('RPCs', 'blast'))
+web3_arb_nova = connect_to_network('arbitrum_nova', config.get('RPCs', 'arbitrum_nova'))
 
 def read_addresses_from_file(file_path):
     addresses = []
@@ -45,29 +45,27 @@ def read_addresses_from_file(file_path):
 
 async def get_eth_balance_async(loop, web3, address):
     try:
-        balance_wei = await loop.run_in_executor(None, web3.eth.get_balance, address)
-        balance_eth = round(web3.from_wei(balance_wei, 'ether'), 5)
-        return balance_eth
+        if web3:
+            balance_wei = await loop.run_in_executor(None, web3.eth.get_balance, address)
+            balance_eth = round(web3.from_wei(balance_wei, 'ether'), 5)
+            return balance_eth
+        return '-'
     except Exception as e:
         return f"Ошибка при получении баланса: {e}"
-
-def create_task(network_name, web3_instance, address, loop):
-    if network_to_process.get(network_name):
-        return get_eth_balance_async(loop, web3_instance, address)
-    return '-'
 
 
 async def process_address(address, loop):
     tasks = [
-        create_task('ethereum', web3_eth, address, loop),
-        create_task('arbitrum', web3_arb, address, loop),
-        create_task('optimism', web3_op, address, loop),
-        create_task('linea', web3_linea, address, loop),
-        create_task('zksync', web3_zksync, address, loop),
-        create_task('scroll', web3_scroll, address, loop),
-        create_task('base', web3_base, address, loop),
-        create_task('mode', web3_mode, address, loop),
-        create_task('blast', web3_blast, address, loop),
+        get_eth_balance_async(loop, web3_eth, address),
+        get_eth_balance_async(loop, web3_arb, address),
+        get_eth_balance_async(loop, web3_op, address),
+        get_eth_balance_async(loop, web3_linea, address),
+        get_eth_balance_async(loop, web3_zksync, address),
+        get_eth_balance_async(loop, web3_scroll, address),
+        get_eth_balance_async(loop, web3_base, address),
+        get_eth_balance_async(loop, web3_mode, address),
+        get_eth_balance_async(loop, web3_blast, address),
+        get_eth_balance_async(loop, web3_arb_nova, address)
     ]
     
     try:
@@ -76,7 +74,7 @@ async def process_address(address, loop):
                 'ETH_op': results[2], 'ETH_linea': results[3],
                 'ETH_zksync': results[4], 'ETH_scroll': results[5],
                 'ETH_base': results[6], 'ETH_mode': results[7], 
-                'ETH_blast': results[8]}
+                'ETH_blast': results[8], 'ETH_arb_nova': results[9]}
     except Exception as e:
         return f"Ошибка при обработке адреса {address}: {e}"
 
@@ -85,14 +83,13 @@ async def main():
     addresses = read_addresses_from_file(addresses_file_path)
     tasks = []
 
-    async with aiohttp.ClientSession() as session:
-        loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
 
-        for address in addresses:
-            task = process_address(address, loop)
-            tasks.append(task)
+    for address in addresses:
+        task = process_address(address, loop)
+        tasks.append(task)
 
-        results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*tasks)
 
     df = pd.DataFrame(results)
 
@@ -113,5 +110,9 @@ with open('work_time_logs.txt', 'a') as work_time_logs:
     work_time_logs.write("Обработаны сети: ")
     for network in network_to_process:
         if network_to_process[network]: work_time_logs.write(f"{network} ")
+    work_time_logs.write('\n')
+    with open(addresses_file_path, 'r') as wallets:
+        number_of_wallets = len(wallets.readlines())
+        work_time_logs.write(f"Кошельков обработано: {number_of_wallets}")
     work_time_logs.write('\n')
     work_time_logs.write('\n')
